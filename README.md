@@ -2,6 +2,8 @@
 
 Production-ready real-time group chat backend built with NestJS, PostgreSQL, Drizzle ORM, Redis, and Socket.IO.
 
+This implementation strictly follows the provided API and WebSocket contract and is designed for horizontal scalability.
+
 ## Stack
 
 - NestJS
@@ -47,19 +49,22 @@ Production-ready real-time group chat backend built with NestJS, PostgreSQL, Dri
 Copy `.env.example` to `.env` and fill in real values:
 
 ```env
+# Server
 PORT=3000
 NODE_ENV=development
 
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chat_api
-DATABASE_SSL=false
-DATABASE_POOL_MAX=10
+# PostgreSQL (Supabase connection string)
+DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+DATABASE_SSL=true
 
-REDIS_HOST=127.0.0.1
+REDIS_URL="rediss://default:<password>@<host>.upstash.io:6379"
+# Local Redis fallback (used only when REDIS_URL is empty)
+REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 
+# Session
 SESSION_TTL_SECONDS=86400
-CORS_ORIGIN=http://localhost:3001
 ```
 
 ## Setup
@@ -95,7 +100,7 @@ Base path: `/api/v1`
 
 ### Auth
 
-- `POST /login`
+- `POST /api/v1/login`
 
 Request:
 
@@ -123,10 +128,10 @@ Response:
 
 ### Rooms
 
-- `GET /rooms`
-- `POST /rooms`
-- `GET /rooms/:id`
-- `DELETE /rooms/:id`
+- `GET /api/v1/rooms`
+- `POST /api/v1/rooms`
+- `GET /api/v1/rooms/:id`
+- `DELETE /api/v1/rooms/:id`
 
 Room list item / room detail payload:
 
@@ -153,8 +158,8 @@ Create room payload:
 
 ### Messages
 
-- `GET /rooms/:id/messages?limit=50&before=<messageId>`
-- `POST /rooms/:id/messages`
+- `GET /api/v1/rooms/:id/messages?limit=50&before=<messageId>`
+- `POST /api/v1/rooms/:id/messages`
 
 Message payload:
 
@@ -252,6 +257,12 @@ Deployed URL:
 https://chat-api-grg7.onrender.com/api/docs
 ```
 
+### API Base URL
+
+```text
+https://chat-api-grg7.onrender.com/api/v1
+```
+
 ### Render
 
 - `render.yaml` is included for a web service deployment.
@@ -264,6 +275,14 @@ https://chat-api-grg7.onrender.com/api/docs
 - Use the included `Dockerfile` or standard Node build/start commands.
 - Provision PostgreSQL and Redis plugins.
 - Set `NODE_ENV=production` and `DATABASE_SSL=true` when your provider requires TLS.
+
+## Quick Test
+
+```bash
+curl -X POST https://chat-api-grg7.onrender.com/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test_user"}'
+```
 
 ## Submission Checklist
 

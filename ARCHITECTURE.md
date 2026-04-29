@@ -1,4 +1,4 @@
-# Architecture
+# Anonymous Chat API - Architecture
 
 ## Overview
 
@@ -33,6 +33,8 @@ The high-level flow is:
                 | Socket.IO Gateway            |
                 +------------------------------+
 ```
+
+This diagram shows a horizontally scalable architecture using Redis for coordination across instances.
 
 REST requests go through controllers into services and PostgreSQL. WebSocket connections are authenticated against Redis-backed sessions. After a message or room event is persisted or validated, Redis is used to fan that event out so every running app instance can notify its own connected sockets.
 
