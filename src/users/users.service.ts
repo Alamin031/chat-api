@@ -1,5 +1,5 @@
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { AppException } from '../common/exceptions/app.exception';
 import { DATABASE_TOKEN } from '../database';
 import type { Database } from '../database';
@@ -26,6 +26,19 @@ export class UsersService {
       .limit(1);
 
     return user ?? null;
+  }
+
+  async findUsernamesByIds(ids: string[]): Promise<string[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const rows = await this.db
+      .select({ username: users.username })
+      .from(users)
+      .where(inArray(users.id, ids));
+
+    return rows.map((row) => row.username).sort((a, b) => a.localeCompare(b));
   }
 
   async create(payload: NewUser): Promise<User> {

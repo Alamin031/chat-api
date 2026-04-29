@@ -111,6 +111,10 @@ export class RedisService implements OnApplicationShutdown {
     return this.redis.scard(this.getActiveUsersKey(roomId));
   }
 
+  async getActiveUserIds(roomId: string): Promise<string[]> {
+    return this.redis.smembers(this.getActiveUsersKey(roomId));
+  }
+
   async getActiveCountsForRooms(
     roomIds: string[],
   ): Promise<Record<string, number>> {

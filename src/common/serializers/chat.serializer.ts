@@ -1,23 +1,14 @@
 import { Message, Room, User } from '../../database/schema';
 import {
+  AuthenticatedUserPayload,
   ChatMessagePayload,
-  PublicUser,
+  RoomPayload,
   RoomSummaryPayload,
 } from '../types/chat-events';
 
-type SerializableUser =
-  | Pick<User, 'id' | 'username' | 'createdAt'>
-  | PublicUser;
-
-export function serializeUser(user: SerializableUser): PublicUser {
-  if (typeof user.createdAt === 'string' || user.createdAt === undefined) {
-    return {
-      id: user.id,
-      username: user.username,
-      createdAt: user.createdAt,
-    };
-  }
-
+export function serializeUser(
+  user: Pick<User, 'id' | 'username' | 'createdAt'>,
+): AuthenticatedUserPayload {
   return {
     id: user.id,
     username: user.username,
@@ -25,28 +16,41 @@ export function serializeUser(user: SerializableUser): PublicUser {
   };
 }
 
-export function serializeRoom(
-  room: Pick<Room, 'id' | 'name' | 'creatorId' | 'createdAt'>,
+export function serializeRoomSummary(
+  room: Pick<Room, 'id' | 'name' | 'createdAt'>,
+  createdBy: string,
   activeUsers: number,
 ): RoomSummaryPayload {
   return {
     id: room.id,
     name: room.name,
-    creatorId: room.creatorId,
+    createdBy,
     createdAt: room.createdAt.toISOString(),
     activeUsers,
   };
 }
 
+export function serializeRoom(
+  room: Pick<Room, 'id' | 'name' | 'createdAt'>,
+  createdBy: string,
+): RoomPayload {
+  return {
+    id: room.id,
+    name: room.name,
+    createdBy,
+    createdAt: room.createdAt.toISOString(),
+  };
+}
+
 export function serializeMessage(
   message: Pick<Message, 'id' | 'roomId' | 'content' | 'createdAt'>,
-  user: SerializableUser,
+  username: string,
 ): ChatMessagePayload {
   return {
     id: message.id,
     roomId: message.roomId,
+    username,
     content: message.content,
     createdAt: message.createdAt.toISOString(),
-    user: serializeUser(user),
   };
 }

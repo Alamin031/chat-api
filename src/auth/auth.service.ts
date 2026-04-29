@@ -50,8 +50,7 @@ export class AuthService {
     await this.redisService.setSession(token, user.id, expiresIn);
 
     return {
-      token,
-      expiresIn,
+      sessionToken: token,
       user: serializeUser(user),
     };
   }

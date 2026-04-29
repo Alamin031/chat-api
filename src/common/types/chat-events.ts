@@ -1,44 +1,48 @@
-export interface PublicUser {
+export interface AuthenticatedUserPayload {
   id: string;
   username: string;
-  createdAt?: string;
+  createdAt: string;
 }
 
 export interface RoomSummaryPayload {
   id: string;
   name: string;
-  creatorId: string;
+  createdBy: string;
   createdAt: string;
   activeUsers: number;
+}
+
+export interface RoomPayload {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
 }
 
 export interface ChatMessagePayload {
   id: string;
   roomId: string;
+  username: string;
   content: string;
   createdAt: string;
-  user: PublicUser;
 }
 
 export interface RoomJoinedEventPayload {
-  room: RoomSummaryPayload;
-  user: PublicUser;
-  activeUsers: number;
-  timestamp: string;
+  activeUsers: string[];
 }
 
 export interface RoomUserJoinedEventPayload {
   roomId: string;
-  user: PublicUser;
-  activeUsers: number;
-  timestamp: string;
+  socketId: string;
+  username: string;
+  activeUsers: string[];
 }
 
 export interface RoomUserLeftEventPayload {
   roomId: string;
-  user: PublicUser;
-  activeUsers: number;
-  timestamp: string;
+  socketId: string;
+  username: string;
+  activeUsers: string[];
 }
 
 export interface MessageNewEventPayload {
@@ -48,7 +52,4 @@ export interface MessageNewEventPayload {
 
 export interface RoomDeletedEventPayload {
   roomId: string;
-  roomName: string;
-  deletedBy: PublicUser;
-  deletedAt: string;
 }

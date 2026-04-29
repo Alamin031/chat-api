@@ -21,16 +21,16 @@ export class AuthGuard implements CanActivate {
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException({
-        code: 'MISSING_TOKEN',
-        message: 'Authorization token is required',
+        code: 'UNAUTHORIZED',
+        message: 'Missing or expired session token',
       });
     }
 
     const token = authHeader.slice(7).trim();
     if (!token) {
       throw new UnauthorizedException({
-        code: 'INVALID_TOKEN',
-        message: 'Authorization token is required',
+        code: 'UNAUTHORIZED',
+        message: 'Missing or expired session token',
       });
     }
 
@@ -38,16 +38,16 @@ export class AuthGuard implements CanActivate {
 
     if (!userId) {
       throw new UnauthorizedException({
-        code: 'INVALID_TOKEN',
-        message: 'Session token is invalid or expired',
+        code: 'UNAUTHORIZED',
+        message: 'Missing or expired session token',
       });
     }
 
     const user = await this.usersService.findById(userId);
     if (!user) {
       throw new UnauthorizedException({
-        code: 'USER_NOT_FOUND',
-        message: 'User associated with this token no longer exists',
+        code: 'UNAUTHORIZED',
+        message: 'Missing or expired session token',
       });
     }
 

@@ -3,17 +3,25 @@ import { desc, eq } from 'drizzle-orm';
 import { CHAT_REDIS_CHANNELS } from '../common/constants/chat-redis-channels';
 import {
   serializeRoom,
-  serializeUser,
+  serializeRoomSummary,
 } from '../common/serializers/chat.serializer';
 import { RoomDeletedEventPayload } from '../common/types/chat-events';
 import { AppException } from '../common/exceptions/app.exception';
 import { DATABASE_TOKEN } from '../database';
 import type { Database } from '../database';
-import { Room, User, rooms } from '../database/schema';
+import { Room, User, rooms, users } from '../database/schema';
 import { RedisService } from '../redis/redis.service';
 
 interface PostgresErrorLike {
   code?: string;
+}
+
+interface RoomWithCreatorRow {
+  id: string;
+  name: string;
+  creatorId: string;
+  createdAt: Date;
+  createdBy: string;
 }
 
 @Injectable()
@@ -24,18 +32,27 @@ export class RoomsService {
   ) {}
 
   async listRooms() {
-    const roomEntities = await this.db
-      .select()
+    const roomRows = await this.db
+      .select({
+        id: rooms.id,
+        name: rooms.name,
+        creatorId: rooms.creatorId,
+        createdAt: rooms.createdAt,
+        createdBy: users.username,
+      })
       .from(rooms)
+      .innerJoin(users, eq(rooms.creatorId, users.id))
       .orderBy(desc(rooms.createdAt), desc(rooms.id));
 
     const activeCounts = await this.redisService.getActiveCountsForRooms(
-      roomEntities.map((room) => room.id),
+      roomRows.map((room) => room.id),
     );
 
-    return roomEntities.map((room) =>
-      serializeRoom(room, activeCounts[room.id] ?? 0),
-    );
+    return {
+      rooms: roomRows.map((room) =>
+        serializeRoomSummary(room, room.createdBy, activeCounts[room.id] ?? 0),
+      ),
+    };
   }
 
   async createRoom(name: string, creator: User) {
@@ -65,7 +82,7 @@ export class RoomsService {
         );
       }
 
-      return serializeRoom(room, 0);
+      return serializeRoom(room, creator.username);
     } catch (error) {
       if (this.isUniqueViolation(error)) {
         throw new AppException(
@@ -80,9 +97,9 @@ export class RoomsService {
   }
 
   async getRoomDetails(roomId: string) {
-    const room = await this.findByIdOrThrow(roomId);
+    const room = await this.findRoomWithCreatorByIdOrThrow(roomId);
     const activeUsers = await this.redisService.getActiveUserCount(room.id);
-    return serializeRoom(room, activeUsers);
+    return serializeRoomSummary(room, room.createdBy, activeUsers);
   }
 
   async deleteRoom(roomId: string, currentUser: User) {
@@ -90,7 +107,7 @@ export class RoomsService {
 
     if (room.creatorId !== currentUser.id) {
       throw new AppException(
-        'FORBIDDEN_ROOM_DELETE',
+        'FORBIDDEN',
         'Only the room creator can delete this room.',
         HttpStatus.FORBIDDEN,
       );
@@ -98,9 +115,6 @@ export class RoomsService {
 
     const payload: RoomDeletedEventPayload = {
       roomId: room.id,
-      roomName: room.name,
-      deletedBy: serializeUser(currentUser),
-      deletedAt: new Date().toISOString(),
     };
 
     await this.redisService.publish(CHAT_REDIS_CHANNELS.roomDeleted, payload);
@@ -108,7 +122,6 @@ export class RoomsService {
 
     return {
       deleted: true,
-      roomId: room.id,
     };
   }
 
@@ -127,7 +140,42 @@ export class RoomsService {
     if (!room) {
       throw new AppException(
         'ROOM_NOT_FOUND',
-        'Room not found.',
+        `Room with id ${roomId} does not exist`,
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return room;
+  }
+
+  private async findRoomWithCreatorById(
+    roomId: string,
+  ): Promise<RoomWithCreatorRow | null> {
+    const [room] = await this.db
+      .select({
+        id: rooms.id,
+        name: rooms.name,
+        creatorId: rooms.creatorId,
+        createdAt: rooms.createdAt,
+        createdBy: users.username,
+      })
+      .from(rooms)
+      .innerJoin(users, eq(rooms.creatorId, users.id))
+      .where(eq(rooms.id, roomId))
+      .limit(1);
+
+    return room ?? null;
+  }
+
+  private async findRoomWithCreatorByIdOrThrow(
+    roomId: string,
+  ): Promise<RoomWithCreatorRow> {
+    const room = await this.findRoomWithCreatorById(roomId);
+
+    if (!room) {
+      throw new AppException(
+        'ROOM_NOT_FOUND',
+        `Room with id ${roomId} does not exist`,
         HttpStatus.NOT_FOUND,
       );
     }

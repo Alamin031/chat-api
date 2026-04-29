@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 
 export class ListRoomMessagesQueryDto {
   @ApiPropertyOptional({
@@ -17,9 +17,9 @@ export class ListRoomMessagesQueryDto {
   limit?: number;
 
   @ApiPropertyOptional({
-    description: 'Opaque pagination cursor returned by nextCursor',
+    description: 'Message ID cursor returned by nextCursor',
   })
   @IsOptional()
-  @IsString()
+  @IsUUID()
   before?: string;
 }

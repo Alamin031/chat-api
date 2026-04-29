@@ -12,12 +12,9 @@ import { isUUID } from 'class-validator';
 import { Server, Socket } from 'socket.io';
 import { CHAT_REDIS_CHANNELS } from '../common/constants/chat-redis-channels';
 import {
-  serializeRoom,
-  serializeUser,
-} from '../common/serializers/chat.serializer';
-import {
   MessageNewEventPayload,
   RoomDeletedEventPayload,
+  RoomJoinedEventPayload,
   RoomUserJoinedEventPayload,
   RoomUserLeftEventPayload,
 } from '../common/types/chat-events';
@@ -88,21 +85,19 @@ export class ChatGateway
         room.id,
         user.id,
       );
-      const timestamp = new Date().toISOString();
+      const activeUsers = await this.getActiveUsernames(room.id);
+      const roomJoinedPayload: RoomJoinedEventPayload = {
+        activeUsers,
+      };
 
-      socket.emit('room:joined', {
-        room: serializeRoom(room, presence.activeUsers),
-        user: serializeUser(user),
-        activeUsers: presence.activeUsers,
-        timestamp,
-      });
+      socket.emit('room:joined', roomJoinedPayload);
 
       if (presence.isFirstConnection) {
         await this.redisService.publish(CHAT_REDIS_CHANNELS.roomUserJoined, {
           roomId: room.id,
-          user: serializeUser(user),
-          activeUsers: presence.activeUsers,
-          timestamp,
+          socketId: socket.id,
+          username: user.username,
+          activeUsers,
         });
       }
     } catch (error) {
@@ -128,19 +123,38 @@ export class ChatGateway
   emitMessageNew(payload: MessageNewEventPayload): void {
     // Redis pub/sub already fans events out to every app instance.
     // Keep this local so the Socket.IO Redis adapter does not rebroadcast duplicates.
-    this.server.local.to(payload.roomId).emit('message:new', payload);
+    this.server.local.to(payload.roomId).emit('message:new', {
+      id: payload.message.id,
+      username: payload.message.username,
+      content: payload.message.content,
+      createdAt: payload.message.createdAt,
+    });
   }
 
   emitRoomUserJoined(payload: RoomUserJoinedEventPayload): void {
-    this.server.local.to(payload.roomId).emit('room:user_joined', payload);
+    this.server.local
+      .to(payload.roomId)
+      .except(payload.socketId)
+      .emit('room:user_joined', {
+        username: payload.username,
+        activeUsers: payload.activeUsers,
+      });
   }
 
   emitRoomUserLeft(payload: RoomUserLeftEventPayload): void {
-    this.server.local.to(payload.roomId).emit('room:user_left', payload);
+    this.server.local
+      .to(payload.roomId)
+      .except(payload.socketId)
+      .emit('room:user_left', {
+        username: payload.username,
+        activeUsers: payload.activeUsers,
+      });
   }
 
   async emitRoomDeleted(payload: RoomDeletedEventPayload): Promise<void> {
-    this.server.local.to(payload.roomId).emit('room:deleted', payload);
+    this.server.local.to(payload.roomId).emit('room:deleted', {
+      roomId: payload.roomId,
+    });
     await this.disconnectLocalRoomSockets(payload.roomId);
   }
 
@@ -153,8 +167,8 @@ export class ChatGateway
       next(
         this.createSocketError(
           HttpStatus.UNAUTHORIZED,
-          'MISSING_TOKEN',
-          'Session token is required.',
+          'UNAUTHORIZED',
+          'Missing or expired session token',
         ),
       );
       return;
@@ -177,8 +191,8 @@ export class ChatGateway
       next(
         this.createSocketError(
           HttpStatus.UNAUTHORIZED,
-          'INVALID_TOKEN',
-          'Session token is invalid or expired.',
+          'UNAUTHORIZED',
+          'Missing or expired session token',
         ),
       );
       return;
@@ -193,8 +207,8 @@ export class ChatGateway
       next(
         this.createSocketError(
           HttpStatus.UNAUTHORIZED,
-          'USER_NOT_FOUND',
-          'User associated with this token no longer exists.',
+          'UNAUTHORIZED',
+          'Missing or expired session token',
         ),
       );
       return;
@@ -205,7 +219,7 @@ export class ChatGateway
         this.createSocketError(
           HttpStatus.NOT_FOUND,
           'ROOM_NOT_FOUND',
-          'Room not found.',
+          `Room with id ${roomId} does not exist`,
         ),
       );
       return;
@@ -244,11 +258,12 @@ export class ChatGateway
       const user =
         socket.data.user ?? (await this.usersService.findById(meta.userId));
       if (user) {
+        const activeUsers = await this.getActiveUsernames(meta.roomId);
         await this.redisService.publish(CHAT_REDIS_CHANNELS.roomUserLeft, {
           roomId: meta.roomId,
-          user: serializeUser(user),
-          activeUsers: presence.activeUsers,
-          timestamp: new Date().toISOString(),
+          socketId: socket.id,
+          username: user.username,
+          activeUsers,
         });
       }
     }
@@ -300,6 +315,11 @@ export class ChatGateway
     }
 
     return null;
+  }
+
+  private async getActiveUsernames(roomId: string): Promise<string[]> {
+    const activeUserIds = await this.redisService.getActiveUserIds(roomId);
+    return this.usersService.findUsernamesByIds(activeUserIds);
   }
 
   private createSocketError(

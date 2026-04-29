@@ -19,6 +19,8 @@ async function createRedisClient(
     maxRetriesPerRequest: null,
     connectionName,
     connectTimeout: 10000,
+    keepAlive: 30000,
+    noDelay: true,
     retryStrategy: (times: number) => Math.min(times * 50, 2000),
   };
   const client = redisUrl

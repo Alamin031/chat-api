@@ -11,13 +11,10 @@ import {
   CHAT_REDIS_CHANNELS,
   ChatRedisChannel,
 } from '../common/constants/chat-redis-channels';
-import { isNumber, isRecord, isString } from '../common/utils/type-guards';
+import { isRecord, isString, isStringArray } from '../common/utils/type-guards';
 import type {
-  ChatMessagePayload,
   MessageNewEventPayload,
-  PublicUser,
   RoomDeletedEventPayload,
-  RoomSummaryPayload,
   RoomUserJoinedEventPayload,
   RoomUserLeftEventPayload,
 } from '../common/types/chat-events';
@@ -149,43 +146,18 @@ export class ChatEventsService implements OnModuleInit, OnApplicationShutdown {
     throw new Error(`Invalid payload for Redis channel ${channel}`);
   }
 
-  private isPublicUser(value: unknown): value is PublicUser {
-    if (!isRecord(value) || !isString(value.id) || !isString(value.username)) {
-      return false;
-    }
-
-    return value.createdAt === undefined || isString(value.createdAt);
-  }
-
-  private isRoomSummaryPayload(value: unknown): value is RoomSummaryPayload {
-    return (
-      isRecord(value) &&
-      isString(value.id) &&
-      isString(value.name) &&
-      isString(value.creatorId) &&
-      isString(value.createdAt) &&
-      isNumber(value.activeUsers)
-    );
-  }
-
-  private isChatMessagePayload(value: unknown): value is ChatMessagePayload {
-    return (
-      isRecord(value) &&
-      isString(value.id) &&
-      isString(value.roomId) &&
-      isString(value.content) &&
-      isString(value.createdAt) &&
-      this.isPublicUser(value.user)
-    );
-  }
-
   private isMessageNewEventPayload(
     value: unknown,
   ): value is MessageNewEventPayload {
     return (
       isRecord(value) &&
       isString(value.roomId) &&
-      this.isChatMessagePayload(value.message)
+      isRecord(value.message) &&
+      isString(value.message.id) &&
+      isString(value.message.roomId) &&
+      isString(value.message.username) &&
+      isString(value.message.content) &&
+      isString(value.message.createdAt)
     );
   }
 
@@ -195,9 +167,9 @@ export class ChatEventsService implements OnModuleInit, OnApplicationShutdown {
     return (
       isRecord(value) &&
       isString(value.roomId) &&
-      this.isPublicUser(value.user) &&
-      isNumber(value.activeUsers) &&
-      isString(value.timestamp)
+      isString(value.socketId) &&
+      isString(value.username) &&
+      isStringArray(value.activeUsers)
     );
   }
 
@@ -207,21 +179,15 @@ export class ChatEventsService implements OnModuleInit, OnApplicationShutdown {
     return (
       isRecord(value) &&
       isString(value.roomId) &&
-      this.isPublicUser(value.user) &&
-      isNumber(value.activeUsers) &&
-      isString(value.timestamp)
+      isString(value.socketId) &&
+      isString(value.username) &&
+      isStringArray(value.activeUsers)
     );
   }
 
   private isRoomDeletedEventPayload(
     value: unknown,
   ): value is RoomDeletedEventPayload {
-    return (
-      isRecord(value) &&
-      isString(value.roomId) &&
-      isString(value.roomName) &&
-      this.isPublicUser(value.deletedBy) &&
-      isString(value.deletedAt)
-    );
+    return isRecord(value) && isString(value.roomId);
   }
 }

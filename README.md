@@ -74,6 +74,8 @@ If you prefer SQL migrations instead of `db:push`, run `npm run db:generate` and
 
 Swagger will be available at `http://localhost:3000/api/docs`.
 
+Do not commit your real `.env`; the repo is already configured to ignore it through `.gitignore`.
+
 ## Scripts
 
 ```bash
@@ -103,6 +105,22 @@ Request:
 }
 ```
 
+Response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionToken": "<opaque token>",
+    "user": {
+      "id": "usr_a1b2c3",
+      "username": "alice_01",
+      "createdAt": "2024-03-01T10:00:00.000Z"
+    }
+  }
+}
+```
+
 ### Rooms
 
 - `GET /rooms`
@@ -110,10 +128,47 @@ Request:
 - `GET /rooms/:id`
 - `DELETE /rooms/:id`
 
+Room list item / room detail payload:
+
+```json
+{
+  "id": "room_x9y8z7",
+  "name": "general",
+  "createdBy": "alice_01",
+  "activeUsers": 4,
+  "createdAt": "2024-03-01T10:00:00.000Z"
+}
+```
+
+Create room payload:
+
+```json
+{
+  "id": "room_x9y8z7",
+  "name": "general",
+  "createdBy": "alice_01",
+  "createdAt": "2024-03-01T10:00:00.000Z"
+}
+```
+
 ### Messages
 
-- `GET /rooms/:id/messages?limit=50&before=<cursor>`
+- `GET /rooms/:id/messages?limit=50&before=<messageId>`
 - `POST /rooms/:id/messages`
+
+Message payload:
+
+```json
+{
+  "id": "msg_ab12cd",
+  "roomId": "room_x9y8z7",
+  "username": "alice_01",
+  "content": "hello everyone",
+  "createdAt": "2024-03-01T10:05:22.000Z"
+}
+```
+
+`before` and `nextCursor` use message IDs.
 
 ## WebSocket
 
@@ -132,6 +187,33 @@ Connect with:
 - `message:new`
 - `room:user_left`
 - `room:deleted`
+
+Payloads:
+
+```json
+{ "activeUsers": ["alice_01", "sara_x"] }
+```
+
+```json
+{ "username": "sara_x", "activeUsers": ["alice_01", "sara_x"] }
+```
+
+```json
+{
+  "id": "msg_ab12cd",
+  "username": "alice_01",
+  "content": "hello everyone",
+  "createdAt": "2024-03-01T10:05:22.000Z"
+}
+```
+
+```json
+{ "username": "sara_x", "activeUsers": ["alice_01"] }
+```
+
+```json
+{ "roomId": "room_x9y8z7" }
+```
 
 ### Client Event
 
@@ -160,7 +242,15 @@ Error:
 }
 ```
 
+Message validation returns `422` for empty or oversized content.
+
 ## Deployment
+
+Deployed URL:
+
+```text
+Add your deployed app URL here before submission
+```
 
 ### Render
 
@@ -174,6 +264,14 @@ Error:
 - Use the included `Dockerfile` or standard Node build/start commands.
 - Provision PostgreSQL and Redis plugins.
 - Set `NODE_ENV=production` and `DATABASE_SSL=true` when your provider requires TLS.
+
+## Submission Checklist
+
+- Public Git repository with source code
+- `README.md` with local setup and run instructions
+- `ARCHITECTURE.md` with architecture, session strategy, scaling notes, and trade-offs
+- Deployed application URL filled in above
+- Real secrets kept out of the public repository
 
 ## Architecture Notes
 
