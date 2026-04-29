@@ -249,7 +249,7 @@ Message validation returns `422` for empty or oversized content.
 Deployed URL:
 
 ```text
-Add your deployed app URL here before submission
+https://chat-api-grg7.onrender.com/api/docs
 ```
 
 ### Render
