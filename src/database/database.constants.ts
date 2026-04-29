@@ -1,0 +1,2 @@
+export const DATABASE_TOKEN = 'DATABASE_TOKEN';
+export const DATABASE_POOL = 'DATABASE_POOL';
