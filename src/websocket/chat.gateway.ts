@@ -9,7 +9,7 @@ import {
 } from '@nestjs/websockets';
 import { HttpStatus, Logger } from '@nestjs/common';
 import { isUUID } from 'class-validator';
-import { Server, Socket } from 'socket.io';
+import { Namespace, Socket } from 'socket.io';
 import { CHAT_REDIS_CHANNELS } from '../common/constants/chat-redis-channels';
 import {
   MessageNewEventPayload,
@@ -51,7 +51,7 @@ export class ChatGateway
   private readonly logger = new Logger(ChatGateway.name);
 
   @WebSocketServer()
-  server!: Server;
+  server!: Namespace;
 
   constructor(
     private readonly redisService: RedisService,
@@ -59,7 +59,7 @@ export class ChatGateway
     private readonly roomsService: RoomsService,
   ) {}
 
-  afterInit(server: Server): void {
+  afterInit(server: Namespace): void {
     server.use((socket, next) => {
       void this.authenticateSocket(socket as ChatSocket, next);
     });
@@ -270,15 +270,13 @@ export class ChatGateway
   }
 
   private async disconnectLocalRoomSockets(roomId: string): Promise<void> {
-    const socketIds = this.server.sockets.adapter.rooms.get(roomId);
+    const socketIds = this.server.adapter.rooms.get(roomId);
     if (!socketIds || socketIds.size === 0) {
       return;
     }
 
     for (const socketId of socketIds) {
-      const socket = this.server.sockets.sockets.get(socketId) as
-        | ChatSocket
-        | undefined;
+      const socket = this.server.sockets.get(socketId) as ChatSocket | undefined;
       if (!socket) {
         continue;
       }

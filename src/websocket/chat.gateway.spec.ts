@@ -119,4 +119,36 @@ describe('ChatGateway contract', () => {
       activeUsers: ['ali_123', 'sara_x'],
     });
   });
+
+  it('emits room:deleted and disconnects local namespace sockets safely', async () => {
+    const { gateway } = createGateway();
+    const emit = jest.fn();
+    const to = jest.fn().mockReturnValue({ emit });
+    const cleanupSocket = {
+      id: 'socket-1',
+      data: {
+        cleanedUp: true,
+      },
+      disconnect: jest.fn(),
+    };
+
+    gateway.server = {
+      local: { to },
+      adapter: {
+        rooms: new Map([
+          ['11111111-1111-1111-1111-111111111111', new Set(['socket-1'])],
+        ]),
+      },
+      sockets: new Map([['socket-1', cleanupSocket]]),
+    } as never;
+
+    await gateway.emitRoomDeleted({
+      roomId: '11111111-1111-1111-1111-111111111111',
+    });
+
+    expect(emit).toHaveBeenCalledWith('room:deleted', {
+      roomId: '11111111-1111-1111-1111-111111111111',
+    });
+    expect(cleanupSocket.disconnect).toHaveBeenCalledWith(true);
+  });
 });
